@@ -6,7 +6,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from PIL import Image
 from io import BytesIO
-from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment
+from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment, SiteSettings, HospitalNews
 
 
 def validate_image_file(image_file):
@@ -132,19 +132,48 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for user details"""
+    """Serializer for user details - includes profile and ID card URLs for admin verification"""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
+    specialization = serializers.SerializerMethodField()
+    id_card_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'full_name', 'date_of_birth',
-            'phone_number', 'address', 'profile_picture', 'about_yourself',
-            'role', 'role_display', 'status', 'status_display',
+            'phone_number', 'address', 'profile_picture', 'profile_picture_url',
+            'about_yourself', 'role', 'role_display', 'specialization',
+            'status', 'status_display', 'id_card_url',
             'date_joined', 'updated_at'
         ]
         read_only_fields = ['id', 'date_joined', 'updated_at']
+    
+    def _absolute_uri(self, file_field):
+        if not file_field:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(file_field.url)
+        return file_field.url
+    
+    def get_profile_picture_url(self, obj):
+        return self._absolute_uri(obj.profile_picture)
+    
+    def get_specialization(self, obj):
+        if hasattr(obj, 'doctor_profile'):
+            return getattr(obj.doctor_profile, 'specialization', None)
+        return None
+    
+    def get_id_card_url(self, obj):
+        if hasattr(obj, 'doctor_profile') and obj.doctor_profile.doctor_id_card:
+            return self._absolute_uri(obj.doctor_profile.doctor_id_card)
+        if hasattr(obj, 'staff_profile') and obj.staff_profile.staff_id_card:
+            return self._absolute_uri(obj.staff_profile.staff_id_card)
+        if hasattr(obj, 'receptionist_profile') and obj.receptionist_profile.receptionist_id_card:
+            return self._absolute_uri(obj.receptionist_profile.receptionist_id_card)
+        return None
 
 
 class DoctorSerializer(serializers.ModelSerializer):
@@ -218,3 +247,53 @@ class LoginSerializer(serializers.Serializer):
 class UserApprovalSerializer(serializers.Serializer):
     """Serializer for user approval"""
     action = serializers.ChoiceField(choices=['approve', 'reject', 'disable'])
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for site settings (logo, banner, site name)"""
+    logo_url = serializers.SerializerMethodField()
+    banner_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SiteSettings
+        fields = ['id', 'site_name', 'logo', 'banner', 'logo_url', 'banner_url', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
+    
+    def get_logo_url(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+    
+    def get_banner_url(self, obj):
+        if obj.banner:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.banner.url)
+            return obj.banner.url
+        return None
+
+
+class HospitalNewsSerializer(serializers.ModelSerializer):
+    """Serializer for hospital news"""
+    posted_by_name = serializers.CharField(source='posted_by.full_name', read_only=True)
+    
+    class Meta:
+        model = HospitalNews
+        fields = ['id', 'title', 'content', 'posted_by', 'posted_by_name', 'created_at']
+        read_only_fields = ['id', 'posted_by', 'created_at']
+
+
+class SendMessageSerializer(serializers.Serializer):
+    """Serializer for sending message to a user by email"""
+    user_id = serializers.UUIDField(required=False)
+    email = serializers.EmailField(required=False)
+    subject = serializers.CharField(max_length=255)
+    message = serializers.CharField()
+    
+    def validate(self, attrs):
+        if not attrs.get('user_id') and not attrs.get('email'):
+            raise serializers.ValidationError('Provide either user_id or email.')
+        return attrs

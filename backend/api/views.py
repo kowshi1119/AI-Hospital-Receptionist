@@ -9,11 +9,12 @@ from django.contrib.auth import authenticate
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment
+from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment, SiteSettings, HospitalNews
 from .serializers import (
     UserRegistrationSerializer, UserSerializer, DoctorSerializer,
     DoctorAvailabilitySerializer, PatientSerializer, AppointmentSerializer,
-    AppointmentCreateSerializer, LoginSerializer, UserApprovalSerializer
+    AppointmentCreateSerializer, LoginSerializer, UserApprovalSerializer,
+    SiteSettingsSerializer, HospitalNewsSerializer, SendMessageSerializer
 )
 from .services import AppointmentService, NotificationService
 from .mongodb_service import MongoDBService
@@ -159,10 +160,24 @@ class AuthViewSet(viewsets.ViewSet):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    """User management"""
-    queryset = User.objects.all()
+    """User management - list, retrieve, update, delete; admin can view all details including ID photos"""
+    queryset = User.objects.select_related(
+        'doctor_profile', 'staff_profile', 'receptionist_profile'
+    ).all()
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
+    
+    def perform_destroy(self, instance):
+        if instance.id == self.request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You cannot remove your own account.')
+        instance.delete()
+    
+    def perform_update(self, serializer):
+        serializer.save()
+        instance = serializer.instance
+        instance.is_active = (instance.status == 'Approved')
+        instance.save(update_fields=['is_active'])
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
@@ -551,7 +566,7 @@ def notifications(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, IsAdmin])
 def send_hospital_news(request):
-    """Send hospital news to all users"""
+    """Send hospital news to all users (email broadcast)"""
     title = request.data.get('title')
     message = request.data.get('message')
     
@@ -561,9 +576,111 @@ def send_hospital_news(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Get all approved users
     users = User.objects.filter(status='Approved').values_list('id', flat=True)
-    
     NotificationService.notify_hospital_news(list(users), title, message)
     
     return Response({'message': 'News sent to all users'})
+
+
+# --- Site Settings (logo, banner) ---
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def site_settings_public(request):
+    """Get site settings for login/public pages (no auth required)"""
+    settings_obj = SiteSettings.get_settings()
+    serializer = SiteSettingsSerializer(settings_obj, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def site_settings_get(request):
+    """Get site settings (logo, banner, site name) - any authenticated user"""
+    settings_obj = SiteSettings.get_settings()
+    serializer = SiteSettingsSerializer(settings_obj, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([permissions.IsAuthenticated, IsAdmin])
+def site_settings_update(request):
+    """Update site settings - Admin only"""
+    settings_obj = SiteSettings.get_settings()
+    serializer = SiteSettingsSerializer(settings_obj, data=request.data, partial=True, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --- Hospital News (CRUD) ---
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def hospital_news_list(request):
+    """List all news - all authenticated users"""
+    news = HospitalNews.objects.all()[:50]
+    serializer = HospitalNewsSerializer(news, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsAdmin])
+def hospital_news_create(request):
+    """Create news - Admin only; optionally send email to all users"""
+    serializer = HospitalNewsSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(posted_by=request.user)
+        # Optionally broadcast email
+        send_to_all = request.data.get('send_email_to_all', False)
+        if send_to_all:
+            users = User.objects.filter(status='Approved').values_list('id', flat=True)
+            NotificationService.notify_hospital_news(list(users), serializer.validated_data['title'], serializer.validated_data['content'])
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([permissions.IsAuthenticated, IsAdmin])
+def hospital_news_delete(request, pk):
+    """Delete news - Admin only"""
+    try:
+        news = HospitalNews.objects.get(pk=pk)
+        news.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except HospitalNews.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# --- Send message to specific user (staff/doctor) by email ---
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsAdmin])
+def send_message_to_user(request):
+    """Send email to a specific user (by user_id or email) - Admin only"""
+    serializer = SendMessageSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    data = serializer.validated_data
+    to_email = None
+    if data.get('user_id'):
+        try:
+            user = User.objects.get(id=data['user_id'])
+            to_email = user.email
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        to_email = data['email']
+    
+    success = NotificationService.send_email(to_email, data['subject'], data['message'])
+    if success:
+        try:
+            MongoDBService.save_notification(
+                user_id=str(User.objects.get(email=to_email).id) if data.get('user_id') else None,
+                notification_type='admin_message',
+                title=data['subject'],
+                message=data['message']
+            )
+        except Exception:
+            pass
+        return Response({'message': f'Message sent to {to_email}'})
+    return Response({'error': 'Failed to send email. Check SendGrid configuration.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

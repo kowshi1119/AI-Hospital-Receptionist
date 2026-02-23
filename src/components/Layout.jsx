@@ -1,7 +1,7 @@
 /**
- * Main Layout Component with Sidebar
+ * Main Layout Component with Sidebar - Logo from site settings (corner, bigger)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -29,8 +29,11 @@ import {
   Phone,
   AccountCircle,
   Logout,
+  Settings,
+  NewReleases,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { siteSettingsAPI } from '../services/api';
 
 const drawerWidth = 240;
 
@@ -39,15 +42,24 @@ const menuItems = [
   { text: 'Appointments', icon: <CalendarToday />, path: '/appointments', roles: ['Admin', 'Doctor', 'Receptionist'] },
   { text: 'Doctors', icon: <LocalHospital />, path: '/doctors', roles: ['Admin', 'Receptionist'] },
   { text: 'Users', icon: <People />, path: '/users', roles: ['Admin'] },
+  { text: 'News', icon: <NewReleases />, path: '/news', roles: ['Admin', 'Doctor', 'Receptionist', 'Staff'] },
   { text: 'Call Logs', icon: <Phone />, path: '/call-logs', roles: ['Admin', 'Receptionist'] },
+  { text: 'Settings', icon: <Settings />, path: '/settings', roles: ['Admin'] },
 ];
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [siteSettings, setSiteSettings] = useState({ site_name: 'WeHealth', logo_url: null, banner_url: null });
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    siteSettingsAPI.get()
+      .then((res) => setSiteSettings(res.data))
+      .catch(() => {});
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -73,24 +85,39 @@ export default function Layout({ children }) {
 
   const drawer = (
     <Box>
-      <Toolbar>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 0.5,
-            width: 40,
-            height: 40,
-            mr: 2,
-          }}
-        >
-          <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
-          <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
-          <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
-          <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
-        </Box>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
-          WeHealth
+      <Toolbar sx={{ gap: 1.5, minHeight: { xs: 64 } }}>
+        {siteSettings.logo_url ? (
+          <Box
+            component="img"
+            src={siteSettings.logo_url}
+            alt="Logo"
+            sx={{
+              width: 88,
+              height: 88,
+              objectFit: 'contain',
+              borderRadius: 1,
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 0.5,
+              width: 88,
+              height: 88,
+              flexShrink: 0,
+            }}
+          >
+            <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
+            <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
+            <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
+            <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
+          </Box>
+        )}
+        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+          {siteSettings.site_name || 'WeHealth'}
         </Typography>
       </Toolbar>
       <Divider />
@@ -133,7 +160,7 @@ export default function Layout({ children }) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Hospital Management System
+            {siteSettings.site_name || 'WeHealth'} - Admin
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body2">{user?.full_name}</Typography>

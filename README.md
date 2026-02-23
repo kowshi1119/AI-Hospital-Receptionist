@@ -83,6 +83,12 @@ A comprehensive, production-ready Hospital Management System with AI-powered fea
 - In-app notifications stored in MongoDB
 - Hospital news broadcast to all users
 
+### 🎨 Admin Page & Branding
+- **Site Settings** (Admin only): Change site name, upload logo (shown in corner of all pages, larger size), upload banner image for login/welcome pages. Stored in database (PostgreSQL) and media files.
+- **Hospital News**: Admin can post news; optionally send email to all users. All roles can view news. Admin can delete news.
+- **Send message to user**: Admin can send an email to a specific staff or doctor (select user, subject, message). Uses SendGrid.
+- **User control**: Admin can approve, reject, or disable users (disable stops login; user is not deleted).
+
 ## 📁 Project Structure
 
 ```
@@ -115,6 +121,8 @@ AI Project For Hospital/
 │   │   ├── UserManagement.jsx       # User management (Admin)
 │   │   ├── DoctorManagement.jsx      # Doctor list
 │   │   ├── CallLogs.jsx              # Call logs view
+│   │   ├── Settings.jsx              # Site settings - logo, banner (Admin)
+│   │   ├── News.jsx                  # Hospital news (all view; Admin add/delete)
 │   │   └── Profile.jsx               # User profile
 │   ├── services/                     # API services
 │   │   └── api.js                    # Axios API client
@@ -538,6 +546,42 @@ Response:
 GET /api/call-logs/
 Authorization: Bearer <token>
 Query Params: limit, skip
+```
+
+### Site Settings (Logo, Banner)
+
+```
+GET /api/site-settings/
+Authorization: Bearer <token>
+Returns: { site_name, logo_url, banner_url, ... }
+
+PATCH /api/site-settings/update/
+Authorization: Bearer <token> (Admin only)
+Content-Type: multipart/form-data
+Body: site_name (optional), logo (file), banner (file)
+```
+
+### Hospital News
+
+```
+GET /api/hospital-news/list/
+Authorization: Bearer <token>
+
+POST /api/hospital-news/create/
+Authorization: Bearer <token> (Admin only)
+Body: { title, content, send_email_to_all?: boolean }
+
+DELETE /api/hospital-news/<uuid>/delete/
+Authorization: Bearer <token> (Admin only)
+```
+
+### Send Message to User (Email)
+
+```
+POST /api/send-message/
+Authorization: Bearer <token> (Admin only)
+Body: { user_id: uuid, subject: string, message: string }
+Or: { email: string, subject: string, message: string }
 ```
 
 ## 👥 User Roles & Permissions

@@ -15,6 +15,8 @@ import UserManagement from './pages/UserManagement';
 import DoctorManagement from './pages/DoctorManagement';
 import AdminUserRegistration from './pages/AdminUserRegistration';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import News from './pages/News';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -103,6 +105,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute roles={['Admin']}>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/news"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <News />
                 </Layout>
               </ProtectedRoute>
             }

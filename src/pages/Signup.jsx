@@ -1,7 +1,7 @@
 /**
- * Signup/Registration Page
+ * Signup/Registration Page - uses site logo and banner from settings
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Box,
@@ -16,10 +16,11 @@ import {
   IconButton,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { authAPI } from '../services/api';
+import { authAPI, siteSettingsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 
 export default function Signup() {
+  const [siteSettings, setSiteSettings] = useState({ site_name: 'WeHealth', logo_url: null, banner_url: null });
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -40,6 +41,10 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
+
+  useEffect(() => {
+    siteSettingsAPI.getPublic().then((res) => setSiteSettings(res.data)).catch(() => {});
+  }, []);
 
   const validateImageFile = (file) => {
     // Validate that the file is a valid image
@@ -333,7 +338,9 @@ export default function Signup() {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: siteSettings.banner_url
+          ? `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url(${siteSettings.banner_url}) center/cover`
+          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -342,23 +349,19 @@ export default function Signup() {
     >
       <Container maxWidth="md">
         <Paper elevation={10} sx={{ p: 4, borderRadius: 3 }}>
-          <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 0.5,
-                width: 40,
-                height: 40,
-              }}
-            >
-              <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
-              <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
-              <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
-              <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
-            </Box>
+          <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+            {siteSettings.logo_url ? (
+              <Box component="img" src={siteSettings.logo_url} alt="Logo" sx={{ width: 88, height: 88, objectFit: 'contain' }} />
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0.5, width: 88, height: 88 }}>
+                <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
+                <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
+                <Box sx={{ bgcolor: '#ff6b35', borderRadius: 1 }} />
+                <Box sx={{ bgcolor: '#0ea5a4', borderRadius: 1 }} />
+              </Box>
+            )}
             <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-              WeHealth - Registration
+              {siteSettings.site_name || 'WeHealth'} – Registration
             </Typography>
           </Box>
 

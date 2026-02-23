@@ -66,6 +66,9 @@ export const userAPI = {
   getPendingUsers: () => api.get('/users/pending/'),
   approveUser: (userId, action) => api.post(`/users/${userId}/approve/`, { action }),
   getAllUsers: () => api.get('/users/'),
+  getById: (id) => api.get(`/users/${id}/`),
+  updateUser: (id, data) => api.patch(`/users/${id}/`, data),
+  deleteUser: (id) => api.delete(`/users/${id}/`),
 };
 
 // Doctor APIs
@@ -122,7 +125,32 @@ export const notificationAPI = {
 
 // Hospital News APIs
 export const hospitalNewsAPI = {
-  send: (data) => api.post('/hospital-news/', data),
+  sendToAll: (data) => api.post('/hospital-news/', data),
+  list: () => api.get('/hospital-news/list/'),
+  create: (data) => api.post('/hospital-news/create/', data),
+  delete: (id) => api.delete(`/hospital-news/${id}/delete/`),
+};
+
+// Site Settings (logo, banner)
+export const siteSettingsAPI = {
+  get: () => api.get('/site-settings/'),
+  getPublic: () => api.get('/site-settings/public/'),  // No auth - for login page
+  update: (data) => {
+    if (data instanceof FormData) {
+      return api.patch('/site-settings/update/', data);
+    }
+    const formData = new FormData();
+    Object.keys(data).forEach((key) => {
+      if (data[key] != null && data[key] !== '')
+        formData.append(key, data[key] instanceof File ? data[key] : data[key]);
+    });
+    return api.patch('/site-settings/update/', formData);
+  },
+};
+
+// Send message to specific user (email)
+export const messageAPI = {
+  sendToUser: (data) => api.post('/send-message/', data),
 };
 
 export default api;

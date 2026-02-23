@@ -213,3 +213,40 @@ class Appointment(models.Model):
     
     def __str__(self):
         return f"{self.patient_name} - Dr. {self.doctor.user.full_name} - {self.appointment_date} {self.appointment_time}"
+
+
+class SiteSettings(models.Model):
+    """Single row: logo, banner, site name - admin can change"""
+    id = models.IntegerField(primary_key=True, default=1, editable=False)
+    site_name = models.CharField(max_length=255, default='WeHealth')
+    logo = models.ImageField(upload_to='site/', null=True, blank=True)
+    banner = models.ImageField(upload_to='site/', null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'site_settings'
+    
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def get_settings(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={'site_name': 'WeHealth'})
+        return obj
+
+
+class HospitalNews(models.Model):
+    """News posts by admin - visible to all; email sent to users when posted"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    posted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='news_posts')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'hospital_news'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.title
