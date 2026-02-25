@@ -62,7 +62,21 @@ export const authAPI = {
 // User APIs
 export const userAPI = {
   getProfile: () => api.get('/users/profile/'),
-  updateProfile: (data) => api.patch('/users/update_profile/', data),
+  updateProfile: (data) => {
+    // Support both JSON and FormData payloads (for profile picture upload)
+    if (data instanceof FormData) {
+      return api.patch('/users/update_profile/', data);
+    }
+
+    const formData = new FormData();
+    Object.keys(data || {}).forEach((key) => {
+      const value = data[key];
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+    return api.patch('/users/update_profile/', formData);
+  },
   getPendingUsers: () => api.get('/users/pending/'),
   approveUser: (userId, action) => api.post(`/users/${userId}/approve/`, { action }),
   getAllUsers: () => api.get('/users/'),
@@ -127,14 +141,27 @@ export const notificationAPI = {
 export const hospitalNewsAPI = {
   sendToAll: (data) => api.post('/hospital-news/', data),
   list: () => api.get('/hospital-news/list/'),
-  create: (data) => api.post('/hospital-news/create/', data),
+  create: (data) => {
+    // Support optional image upload via FormData
+    if (data instanceof FormData) {
+      return api.post('/hospital-news/create/', data);
+    }
+    const formData = new FormData();
+    Object.keys(data || {}).forEach((key) => {
+      const value = data[key];
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+    return api.post('/hospital-news/create/', formData);
+  },
   delete: (id) => api.delete(`/hospital-news/${id}/delete/`),
 };
 
 // Site Settings (logo, banner)
 export const siteSettingsAPI = {
   get: () => api.get('/site-settings/'),
-  getPublic: () => api.get('/site-settings/public/'),  // No auth - for login page
+  getPublic: () => api.get('/site-settings/public/'), // No auth - for login/landing pages
   update: (data) => {
     if (data instanceof FormData) {
       return api.patch('/site-settings/update/', data);
@@ -146,6 +173,17 @@ export const siteSettingsAPI = {
     });
     return api.patch('/site-settings/update/', formData);
   },
+};
+
+// Chat APIs
+export const chatAPI = {
+  searchUsers: (query) =>
+    api.get('/chat-users/', { params: { q: query || '' } }),
+  getMessages: (otherUserId) =>
+    api.get('/chat-messages/', { params: { with_user: otherUserId } }),
+  sendMessage: (receiverId, message) =>
+    api.post('/chat-messages/', { receiver_id: receiverId, message }),
+  deleteMessage: (id) => api.delete(`/chat-messages/${id}/`),
 };
 
 // Send message to specific user (email)

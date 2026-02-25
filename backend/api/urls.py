@@ -4,12 +4,25 @@ API URL Configuration
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    AuthViewSet, UserViewSet, DoctorViewSet, DoctorAvailabilityViewSet,
-    PatientViewSet, AppointmentViewSet, dashboard_stats, call_logs,
-    notifications, send_hospital_news,
-    site_settings_public, site_settings_get, site_settings_update,
-    hospital_news_list, hospital_news_create, hospital_news_delete,
+    AuthViewSet,
+    UserViewSet,
+    DoctorViewSet,
+    DoctorAvailabilityViewSet,
+    PatientViewSet,
+    AppointmentViewSet,
+    ChatMessageViewSet,
+    dashboard_stats,
+    call_logs,
+    notifications,
+    send_hospital_news,
+    site_settings_public,
+    site_settings_get,
+    site_settings_update,
+    hospital_news_list,
+    hospital_news_create,
+    hospital_news_delete,
     send_message_to_user,
+    chat_user_search,
 )
 
 router = DefaultRouter()
@@ -19,6 +32,7 @@ router.register(r'doctors', DoctorViewSet, basename='doctor')
 router.register(r'availability', DoctorAvailabilityViewSet, basename='availability')
 router.register(r'patients', PatientViewSet, basename='patient')
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
+router.register(r'chat-messages', ChatMessageViewSet, basename='chat-message')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -33,4 +47,5 @@ urlpatterns = [
     path('site-settings/public/', site_settings_public, name='site-settings-public'),
     path('site-settings/update/', site_settings_update, name='site-settings-update'),
     path('send-message/', send_message_to_user, name='send-message'),
+    path('chat-users/', chat_user_search, name='chat-users'),
 ]

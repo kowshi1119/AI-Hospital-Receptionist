@@ -22,6 +22,12 @@ export default function Settings() {
   const [bannerFile, setBannerFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
+  const [heroFile, setHeroFile] = useState(null);
+  const [heroPreview, setHeroPreview] = useState(null);
+  const [servicesText, setServicesText] = useState('');
+  const [visionText, setVisionText] = useState('');
+  const [missionText, setMissionText] = useState('');
+  const [footerText, setFooterText] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -31,6 +37,11 @@ export default function Settings() {
         setSiteName(res.data.site_name || 'WeHealth');
         setLogoPreview(res.data.logo_url || null);
         setBannerPreview(res.data.banner_url || null);
+        setHeroPreview(res.data.hero_image_url || null);
+        setServicesText(res.data.services_text || '');
+        setVisionText(res.data.vision_text || '');
+        setMissionText(res.data.mission_text || '');
+        setFooterText(res.data.footer_text || '');
       })
       .catch(() => toast.error('Failed to load settings'))
       .finally(() => setLoadingData(false));
@@ -52,18 +63,32 @@ export default function Settings() {
     }
   };
 
+  const handleHeroChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setHeroFile(file);
+      setHeroPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData();
     formData.append('site_name', siteName);
+    formData.append('services_text', servicesText);
+    formData.append('vision_text', visionText);
+    formData.append('mission_text', missionText);
+    formData.append('footer_text', footerText);
     if (logoFile) formData.append('logo', logoFile);
     if (bannerFile) formData.append('banner', bannerFile);
+    if (heroFile) formData.append('hero_image', heroFile);
     try {
       await siteSettingsAPI.update(formData);
       toast.success('Settings saved. Logo and banner updated.');
       setLogoFile(null);
       setBannerFile(null);
+      setHeroFile(null);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save settings');
     } finally {
@@ -80,7 +105,7 @@ export default function Settings() {
       </Typography>
       <Paper sx={{ p: 3 }}>
         <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-          Change site logo, banner and name. These appear across the application.
+          Change site logo, banner, hero image and texts for landing/login pages. These appear across the application.
         </Typography>
         <form onSubmit={handleSubmit}>
           <TextField
@@ -128,6 +153,60 @@ export default function Settings() {
               <input type="file" hidden accept="image/*" onChange={handleBannerChange} />
             </Button>
           </Box>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Hero Image (front page doctors/team)
+            </Typography>
+            {heroPreview && (
+              <Box sx={{ mb: 1 }}>
+                <Box
+                  component="img"
+                  src={heroPreview}
+                  alt="Hero"
+                  sx={{ maxWidth: '100%', maxHeight: 240, objectFit: 'cover', border: 1, borderRadius: 1 }}
+                />
+              </Box>
+            )}
+            <Button variant="outlined" component="label">
+              {heroPreview ? 'Change Hero Image' : 'Upload Hero Image'}
+              <input type="file" hidden accept="image/*" onChange={handleHeroChange} />
+            </Button>
+          </Box>
+          <TextField
+            fullWidth
+            label="Our Services"
+            multiline
+            minRows={3}
+            value={servicesText}
+            onChange={(e) => setServicesText(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Our Vision"
+            multiline
+            minRows={3}
+            value={visionText}
+            onChange={(e) => setVisionText(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Our Mission"
+            multiline
+            minRows={3}
+            value={missionText}
+            onChange={(e) => setMissionText(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Footer Text"
+            value={footerText}
+            onChange={(e) => setFooterText(e.target.value)}
+            helperText="You can use {year} placeholder for current year"
+            sx={{ mb: 3 }}
+          />
           <Button type="submit" variant="contained" disabled={loading}>
             {loading ? 'Saving...' : 'Save Settings'}
           </Button>

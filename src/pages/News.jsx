@@ -30,6 +30,7 @@ export default function News() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [sendEmailToAll, setSendEmailToAll] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
@@ -50,12 +51,20 @@ export default function News() {
     }
     setLoading(true);
     try {
-      await hospitalNewsAPI.create({ title: title.trim(), content: content.trim(), send_email_to_all: sendEmailToAll });
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('content', content.trim());
+      formData.append('send_email_to_all', sendEmailToAll ? 'true' : 'false');
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+      await hospitalNewsAPI.create(formData);
       toast.success(sendEmailToAll ? 'News posted and email sent to all users.' : 'News posted.');
       setOpen(false);
       setTitle('');
       setContent('');
       setSendEmailToAll(false);
+      setImageFile(null);
       loadNews();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to post news');
@@ -97,11 +106,21 @@ export default function News() {
             </ListItem>
           )}
           {news.map((item) => (
-            <ListItem key={item.id} divider>
+            <ListItem key={item.id} divider alignItems="flex-start">
               <ListItemText
                 primary={item.title}
                 secondary={
                   <>
+                    {item.image && (
+                      <Box sx={{ mb: 1 }}>
+                        <Box
+                          component="img"
+                          src={item.image}
+                          alt={item.title}
+                          sx={{ maxWidth: 160, maxHeight: 120, objectFit: 'cover', borderRadius: 1 }}
+                        />
+                      </Box>
+                    )}
                     <Typography variant="body2" color="text.secondary">
                       {item.content}
                     </Typography>
@@ -142,6 +161,23 @@ export default function News() {
             onChange={(e) => setContent(e.target.value)}
             sx={{ mb: 2 }}
           />
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Optional Image
+            </Typography>
+            <Button variant="outlined" component="label">
+              {imageFile ? 'Change Image' : 'Upload Image'}
+              <input
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setImageFile(file);
+                }}
+              />
+            </Button>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <input
               type="checkbox"

@@ -47,7 +47,13 @@ export default function Dashboard() {
   }
 
   const StatCard = ({ title, value, icon, color }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.10)',
+      }}
+    >
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <Box
@@ -65,7 +71,10 @@ export default function Dashboard() {
             {title}
           </Typography>
         </Box>
-        <Typography variant="h3" sx={{ fontWeight: 'bold', color: `${color}.main` }}>
+        <Typography
+          variant="h3"
+          sx={{ fontWeight: 'bold', color: `${color}.main` }}
+        >
           {value || 0}
         </Typography>
       </CardContent>
@@ -73,10 +82,30 @@ export default function Dashboard() {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
-        Welcome, {user?.full_name}!
-      </Typography>
+    <Container
+      maxWidth="xl"
+      sx={{ py: 4, bgcolor: '#f5f7fb', minHeight: 'calc(100vh - 96px)' }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 4,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            Welcome back, {user?.full_name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Here is an overview of today’s hospital activity.
+          </Typography>
+        </Box>
+        <Button variant="contained" color="primary">
+          View Appointments
+        </Button>
+      </Box>
 
       <Grid container spacing={3}>
         {user?.role === 'Admin' && (
@@ -176,12 +205,18 @@ export default function Dashboard() {
 
         {/* Recent Calls */}
         {stats?.recent_calls && stats.recent_calls.length > 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
+          <Grid item xs={12} md={6}>
+            <Paper
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.06)',
+              }}
+            >
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
                 Recent Call Logs
               </Typography>
-              <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+              <Box sx={{ maxHeight: 280, overflow: 'auto' }}>
                 {stats.recent_calls.map((call, index) => (
                   <Box
                     key={index}
@@ -189,7 +224,7 @@ export default function Dashboard() {
                       p: 2,
                       mb: 1,
                       bgcolor: 'grey.100',
-                      borderRadius: 1,
+                      borderRadius: 1.5,
                     }}
                   >
                     <Typography variant="body2">

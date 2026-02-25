@@ -6,7 +6,18 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from PIL import Image
 from io import BytesIO
-from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment, SiteSettings, HospitalNews
+from .models import (
+    User,
+    Doctor,
+    Staff,
+    Receptionist,
+    DoctorAvailability,
+    Patient,
+    Appointment,
+    SiteSettings,
+    HospitalNews,
+    ChatMessage,
+)
 
 
 def validate_image_file(image_file):
@@ -250,13 +261,28 @@ class UserApprovalSerializer(serializers.Serializer):
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
-    """Serializer for site settings (logo, banner, site name)"""
+    """Serializer for site settings (logo, banner, content sections, site name)"""
     logo_url = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
+    hero_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = SiteSettings
-        fields = ['id', 'site_name', 'logo', 'banner', 'logo_url', 'banner_url', 'updated_at']
+        fields = [
+            'id',
+            'site_name',
+            'logo',
+            'banner',
+            'logo_url',
+            'banner_url',
+            'services_text',
+            'vision_text',
+            'mission_text',
+            'hero_image',
+            'hero_image_url',
+            'footer_text',
+            'updated_at',
+        ]
         read_only_fields = ['id', 'updated_at']
     
     def get_logo_url(self, obj):
@@ -275,6 +301,14 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
             return obj.banner.url
         return None
 
+    def get_hero_image_url(self, obj):
+        if obj.hero_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.hero_image.url)
+            return obj.hero_image.url
+        return None
+
 
 class HospitalNewsSerializer(serializers.ModelSerializer):
     """Serializer for hospital news"""
@@ -282,7 +316,7 @@ class HospitalNewsSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = HospitalNews
-        fields = ['id', 'title', 'content', 'posted_by', 'posted_by_name', 'created_at']
+        fields = ['id', 'title', 'content', 'image', 'posted_by', 'posted_by_name', 'created_at']
         read_only_fields = ['id', 'posted_by', 'created_at']
 
 
@@ -297,3 +331,42 @@ class SendMessageSerializer(serializers.Serializer):
         if not attrs.get('user_id') and not attrs.get('email'):
             raise serializers.ValidationError('Provide either user_id or email.')
         return attrs
+
+
+class SimpleUserSerializer(serializers.ModelSerializer):
+    """Lightweight user representation for chat user search"""
+    profile_picture_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'email', 'username', 'profile_picture_url']
+
+    def get_profile_picture_url(self, obj):
+        request = self.context.get('request')
+        if obj.profile_picture and request:
+            return request.build_absolute_uri(obj.profile_picture.url)
+        if obj.profile_picture:
+            return obj.profile_picture.url
+        return None
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    """Serializer for chat messages"""
+    sender = SimpleUserSerializer(read_only=True)
+    receiver = SimpleUserSerializer(read_only=True)
+    receiver_id = serializers.UUIDField(write_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'sender', 'receiver', 'receiver_id', 'message', 'created_at', 'is_read']
+        read_only_fields = ['id', 'sender', 'receiver', 'created_at', 'is_read']
+
+    def create(self, validated_data):
+        receiver_id = validated_data.pop('receiver_id')
+        try:
+            receiver = User.objects.get(id=receiver_id)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'receiver_id': 'Receiver not found'})
+
+        user = self.context['request'].user
+        return ChatMessage.objects.create(sender=user, receiver=receiver, **validated_data)

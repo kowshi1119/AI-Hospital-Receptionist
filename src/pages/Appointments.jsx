@@ -29,7 +29,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import dayjs from 'dayjs';
-import { appointmentAPI, doctorAPI } from '../services/api';
+import { appointmentAPI, availabilityAPI, doctorAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
@@ -37,6 +37,7 @@ export default function Appointments() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [availability, setAvailability] = useState([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({
@@ -54,6 +55,30 @@ export default function Appointments() {
     loadAppointments();
     loadDoctors();
   }, []);
+
+  useEffect(() => {
+    const { doctor, appointment_date } = formData;
+    if (!doctor || !appointment_date) {
+      setAvailability([]);
+      return;
+    }
+
+    const loadAvailability = async () => {
+      try {
+        const res = await availabilityAPI.getAll({ doctor });
+        const allSlots = res.data.results || res.data || [];
+        const selectedDayName = appointment_date.format('dddd'); // e.g. "Monday"
+        const daySlots = allSlots.filter(
+          (slot) => slot.is_available && slot.day_display === selectedDayName
+        );
+        setAvailability(daySlots);
+      } catch {
+        setAvailability([]);
+      }
+    };
+
+    loadAvailability();
+  }, [formData.doctor, formData.appointment_date]);
 
   const loadAppointments = async () => {
     try {
@@ -109,6 +134,27 @@ export default function Appointments() {
 
   const handleSubmit = async () => {
     try {
+      if (!availability.length) {
+        toast.error(
+          'Selected doctor has no available slots for this day. Please choose another day or doctor.'
+        );
+        return;
+      }
+
+      const selectedTime = formData.appointment_time.format('HH:mm:ss');
+      const isWithinSlot = availability.some((slot) => {
+        const start = slot.start_time;
+        const end = slot.end_time;
+        return selectedTime >= start && selectedTime <= end;
+      });
+
+      if (!isWithinSlot) {
+        toast.error(
+          'Selected time is outside the doctor’s available hours. Please choose a time within their availability.'
+        );
+        return;
+      }
+
       const data = {
         ...formData,
         appointment_date: formData.appointment_date.format('YYYY-MM-DD'),

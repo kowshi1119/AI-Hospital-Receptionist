@@ -9,12 +9,33 @@ from django.contrib.auth import authenticate
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import User, Doctor, Staff, Receptionist, DoctorAvailability, Patient, Appointment, SiteSettings, HospitalNews
+from .models import (
+    User,
+    Doctor,
+    Staff,
+    Receptionist,
+    DoctorAvailability,
+    Patient,
+    Appointment,
+    SiteSettings,
+    HospitalNews,
+    ChatMessage,
+)
 from .serializers import (
-    UserRegistrationSerializer, UserSerializer, DoctorSerializer,
-    DoctorAvailabilitySerializer, PatientSerializer, AppointmentSerializer,
-    AppointmentCreateSerializer, LoginSerializer, UserApprovalSerializer,
-    SiteSettingsSerializer, HospitalNewsSerializer, SendMessageSerializer
+    UserRegistrationSerializer,
+    UserSerializer,
+    DoctorSerializer,
+    DoctorAvailabilitySerializer,
+    PatientSerializer,
+    AppointmentSerializer,
+    AppointmentCreateSerializer,
+    LoginSerializer,
+    UserApprovalSerializer,
+    SiteSettingsSerializer,
+    HospitalNewsSerializer,
+    SendMessageSerializer,
+    ChatMessageSerializer,
+    SimpleUserSerializer,
 )
 from .services import AppointmentService, NotificationService
 from .mongodb_service import MongoDBService
@@ -452,6 +473,39 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             AppointmentSerializer(appointment).data,
             status=status.HTTP_200_OK
         )
+
+
+class ChatMessageViewSet(viewsets.ModelViewSet):
+    """User-to-user chat messages"""
+    queryset = ChatMessage.objects.select_related('sender', 'receiver').all()
+    serializer_class = ChatMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset().filter(Q(sender=user) | Q(receiver=user))
+        other_user_id = self.request.query_params.get('with_user')
+        if other_user_id:
+            qs = qs.filter(
+                Q(sender_id=other_user_id, receiver=user)
+                | Q(sender=user, receiver_id=other_user_id)
+            )
+        return qs.order_by('created_at')
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['request'] = self.request
+        return ctx
+
+    def destroy(self, request, *args, **kwargs):
+        """Allow deleting only messages sent by the current user"""
+        instance = self.get_object()
+        if instance.sender != request.user:
+            return Response(
+                {'error': 'You can only delete messages you have sent.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
     
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -561,6 +615,25 @@ def notifications(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def chat_user_search(request):
+    """Search users by name, username or email for chat"""
+    query = request.query_params.get('q', '').strip()
+    users = User.objects.exclude(id=request.user.id)
+
+    if query:
+        users = users.filter(
+            Q(full_name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(username__icontains=query)
+        )
+
+    users = users.order_by('full_name')[:20]
+    serializer = SimpleUserSerializer(users, many=True, context={'request': request})
+    return Response(serializer.data)
 
 
 @api_view(['POST'])

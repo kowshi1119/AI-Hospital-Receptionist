@@ -31,15 +31,19 @@ import {
   Logout,
   Settings,
   NewReleases,
+  AccessTime,
+  Chat,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { siteSettingsAPI } from '../services/api';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <Dashboard />, path: '/', roles: ['Admin', 'Doctor', 'Receptionist', 'Staff'] },
+  { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', roles: ['Admin', 'Doctor', 'Receptionist', 'Staff'] },
   { text: 'Appointments', icon: <CalendarToday />, path: '/appointments', roles: ['Admin', 'Doctor', 'Receptionist'] },
+  { text: 'Availability', icon: <AccessTime />, path: '/availability', roles: ['Admin', 'Doctor'] },
+  { text: 'Chat', icon: <Chat />, path: '/chat', roles: ['Admin', 'Doctor', 'Receptionist', 'Staff'] },
   { text: 'Doctors', icon: <LocalHospital />, path: '/doctors', roles: ['Admin', 'Receptionist'] },
   { text: 'Users', icon: <People />, path: '/users', roles: ['Admin'] },
   { text: 'News', icon: <NewReleases />, path: '/news', roles: ['Admin', 'Doctor', 'Receptionist', 'Staff'] },
@@ -84,8 +88,15 @@ export default function Layout({ children }) {
   );
 
   const drawer = (
-    <Box>
-      <Toolbar sx={{ gap: 1.5, minHeight: { xs: 64 } }}>
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'linear-gradient(180deg, #051937 0%, #002a5c 40%, #0ea5a4 100%)',
+      }}
+    >
+      <Toolbar sx={{ gap: 1.5, minHeight: { xs: 64 }, color: 'common.white' }}>
         {siteSettings.logo_url ? (
           <Box
             component="img"
@@ -120,22 +131,47 @@ export default function Layout({ children }) {
           {siteSettings.site_name || 'WeHealth'}
         </Typography>
       </Toolbar>
-      <Divider />
-      <List>
-        {filteredMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => {
-                navigate(item.path);
-                setMobileOpen(false);
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mt: 1 }} />
+      <List sx={{ color: 'rgba(255,255,255,0.9)', flexGrow: 1, py: 1 }}>
+        {filteredMenuItems.map((item) => {
+          const selected = location.pathname === item.path;
+          return (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                selected={selected}
+                onClick={() => {
+                  navigate(item.path);
+                  setMobileOpen(false);
+                }}
+                sx={{
+                  mx: 1,
+                  borderRadius: 2,
+                  mb: 0.5,
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(255,255,255,0.16)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' },
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: selected ? 'secondary.main' : 'rgba(255,255,255,0.7)',
+                    minWidth: 40,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontSize: 14,
+                    fontWeight: selected ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </List>
     </Box>
   );
@@ -147,6 +183,9 @@ export default function Layout({ children }) {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          bgcolor: 'rgba(255,255,255,0.9)',
+          color: 'text.primary',
+          boxShadow: 1,
         }}
       >
         <Toolbar>
@@ -159,13 +198,23 @@ export default function Layout({ children }) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {siteSettings.site_name || 'WeHealth'} - Admin
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ flexGrow: 1, fontWeight: 600 }}
+          >
+            {siteSettings.site_name || 'WeHealth'} Dashboard
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body2">{user?.full_name}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {user?.full_name}
+            </Typography>
             <IconButton onClick={handleMenuOpen} sx={{ p: 0 }}>
-              <Avatar sx={{ bgcolor: 'secondary.main' }}>
+              <Avatar
+                src={user?.profile_picture_url || user?.profile_picture || undefined}
+                sx={{ bgcolor: 'secondary.main' }}
+              >
                 {user?.full_name?.charAt(0) || 'U'}
               </Avatar>
             </IconButton>
@@ -206,6 +255,9 @@ export default function Layout({ children }) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              background:
+                'linear-gradient(180deg, #051937 0%, #002a5c 40%, #0ea5a4 100%)',
+              color: 'common.white',
             },
           }}
         >
@@ -218,6 +270,9 @@ export default function Layout({ children }) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              background:
+                'linear-gradient(180deg, #051937 0%, #002a5c 40%, #0ea5a4 100%)',
+              color: 'common.white',
             },
           }}
           open

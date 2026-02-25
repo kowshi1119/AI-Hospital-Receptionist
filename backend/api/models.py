@@ -221,6 +221,16 @@ class SiteSettings(models.Model):
     site_name = models.CharField(max_length=255, default='WeHealth')
     logo = models.ImageField(upload_to='site/', null=True, blank=True)
     banner = models.ImageField(upload_to='site/', null=True, blank=True)
+    # Public landing / login content (editable by admin)
+    services_text = models.TextField(blank=True, default='')
+    vision_text = models.TextField(blank=True, default='')
+    mission_text = models.TextField(blank=True, default='')
+    hero_image = models.ImageField(upload_to='site/', null=True, blank=True)
+    footer_text = models.CharField(
+        max_length=512,
+        blank=True,
+        default='© {year} Team Northern Knights – Application built by Team Northern Knights.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -241,6 +251,7 @@ class HospitalNews(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     content = models.TextField()
+    image = models.ImageField(upload_to='news/', null=True, blank=True)
     posted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='news_posts')
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -250,3 +261,23 @@ class HospitalNews(models.Model):
     
     def __str__(self):
         return self.title
+
+
+class ChatMessage(models.Model):
+    """Simple user-to-user chat messages inside the application"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'chat_messages'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['sender', 'receiver', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.sender.full_name} → {self.receiver.full_name}: {self.message[:30]}"
