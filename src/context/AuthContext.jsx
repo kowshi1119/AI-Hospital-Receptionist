@@ -8,16 +8,18 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is logged in
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('access_token');
+    const storedToken = localStorage.getItem('access_token');
     
-    if (storedUser && token) {
+    if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
+        setToken(storedToken);
       } catch (e) {
         console.error('Error parsing user data:', e);
         localStorage.removeItem('user');
@@ -38,6 +40,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       
       setUser(userData);
+      setToken(access);
       return { success: true };
     } catch (error) {
       let errorMessage = 'Login failed. Please check your credentials.';
@@ -71,10 +74,12 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     authAPI.logout();
     setUser(null);
+    setToken(null);
   };
 
   const value = {
     user,
+    token,
     setUser: (updated) => {
       setUser(updated);
       if (updated) {
@@ -86,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!token,
     isAdmin: user?.role === 'Admin',
     isDoctor: user?.role === 'Doctor',
     isReceptionist: user?.role === 'Receptionist',

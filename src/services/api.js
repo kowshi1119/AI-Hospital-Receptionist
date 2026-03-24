@@ -36,7 +36,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const requestUrl = String(error.config?.url || '');
+    const isAuthEndpoint = requestUrl.includes('/auth/login/')
+      || requestUrl.includes('/auth/register/')
+      || requestUrl.includes('/auth/register_by_admin/');
+
+    if (status === 401 && !isAuthEndpoint) {
       // Token expired or invalid
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');

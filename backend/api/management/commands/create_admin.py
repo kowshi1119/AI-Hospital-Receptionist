@@ -55,6 +55,13 @@ class Command(BaseCommand):
             status='Approved',
         )
 
+        # Ensure admin is fully active and approved even if defaults change.
+        admin.is_active = True
+        admin.status = 'Approved'
+        admin.role = 'Admin'
+        admin.full_name = admin.full_name or 'System Administrator'
+        admin.save(update_fields=['is_active', 'status', 'role', 'full_name'])
+
         self.stdout.write(
             self.style.SUCCESS(
                 f'Successfully created admin user!\n'

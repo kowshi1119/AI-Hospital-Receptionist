@@ -47,6 +47,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# Accidental nested repo copy
+AI-Hospital-Receptionist/
+
 # Testing
 .coverage
 htmlcov/

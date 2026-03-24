@@ -31,12 +31,15 @@ const Login = () => {
       return;
     }
     setLoading(true);
-    const result = await login(username, password);
-    if (result.success) {
-      toast.success('Login successful!');
-      navigate('/dashboard');
-    } else {
-      toast.error(result.error || 'Login failed. Please check your credentials.');
+    try {
+      const result = await login(username, password);
+      if (result.success) {
+        toast.success('Login successful!');
+        navigate('/dashboard');
+      } else {
+        toast.error(result.error || 'Login failed. Please check your credentials.');
+      }
+    } finally {
       setLoading(false);
     }
   };

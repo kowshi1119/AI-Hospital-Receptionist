@@ -133,28 +133,42 @@ class AuthViewSet(viewsets.ViewSet):
     def login(self, request):
         """User login"""
         try:
+            print("=== LOGIN ATTEMPT ===")
+            print("Request keys:", list(request.data.keys()) if hasattr(request.data, 'keys') else request.data)
             serializer = LoginSerializer(data=request.data)
             if not serializer.is_valid():
+                print("ERROR: Invalid payload for login:", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
             username = serializer.validated_data['username']
             password = serializer.validated_data['password']
+            print("Username:", username)
             
-            user = authenticate(username=username, password=password)
+            user = authenticate(request=request, username=username, password=password)
+            print("Authenticated user:", user)
             
             if user is None:
+                print("ERROR: Authentication failed")
+                try:
+                    existing = User.objects.get(username=username)
+                    print("User exists, status:", existing.status)
+                    print("User is_active:", existing.is_active)
+                except User.DoesNotExist:
+                    print("User does not exist in database")
                 return Response(
                     {'error': 'Invalid username or password'},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
             
             if user.status != 'Approved':
+                print(f"ERROR: User status is '{user.status}', not Approved")
                 return Response(
                     {'error': f'Account status: {user.status}. Please wait for admin approval.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
             if not user.is_active:
+                print("ERROR: User account is inactive")
                 return Response(
                     {'error': 'Account is disabled'},
                     status=status.HTTP_403_FORBIDDEN
@@ -162,6 +176,7 @@ class AuthViewSet(viewsets.ViewSet):
             
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
+            print("Login successful for:", user.username)
             
             user_serializer = UserSerializer(user)
             
@@ -177,6 +192,7 @@ class AuthViewSet(viewsets.ViewSet):
                     {'error': 'Database not initialized. Please run: python manage.py migrate'},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
+            print("ERROR: Login exception:", error_msg)
             return Response(
                 {'error': 'Login failed. Please try again later.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
